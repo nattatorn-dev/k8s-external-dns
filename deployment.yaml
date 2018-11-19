@@ -1,0 +1,50 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: external-dns
+  namespace: kube-system
+spec:
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: external-dns
+    spec:
+      serviceAccountName: external-dns
+      containers:
+        - env:
+            # - name: AWS_ACCESS_KEY_ID
+            #   valueFrom:
+            #     secretKeyRef:
+            #       name: aws-ledgerx-icoportal
+            #       key: aws_access_key_id
+            # - name: AWS_SECRET_ACCESS_KEY
+            #   valueFrom:
+            #     secretKeyRef:
+            #       name: aws-ledgerx-icoportal
+            #       key: aws_secret_access_key
+            - name: CF_API_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: cloudflare
+                  key: email
+            - name: CF_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: cloudflare
+                  key: api_key
+          name: external-dns
+          image: registry.opensource.zalan.do/teapot/external-dns:v0.5.8
+          args:
+            - --source=service
+            - --source=ingress
+            # - --domain-filter=givemebug.com # will make ExternalDNS see only the hosted zones matching provided domain, omit to process all available hosted zones
+            - --provider=cloudflare
+            # - --aws-zone-type=public # only look at public hosted zones (valid values are public, private or no value for both)
+            - --registry=txt
+            - --txt-owner-id=k8s
+            - --log-level=debug
+            - --cloudflare-proxied
+      imagePullSecrets:
+        - name: cloudflare-pull-secret
